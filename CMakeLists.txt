@@ -18,6 +18,7 @@ add_library(minitorch_core STATIC
     src/nn/parameter.cpp
     src/nn/module.cpp
     src/nn/linear.cpp
+    src/nn/relu.cpp
 )
 
 target_include_directories(minitorch_core
@@ -93,4 +94,23 @@ target_include_directories(minitorch_linear_basic
 add_test(
     NAME minitorch_linear_basic_test
     COMMAND minitorch_linear_basic
+)
+
+add_executable(minitorch_relu_basic
+    examples/relu_basic.cpp
+)
+
+target_link_libraries(minitorch_relu_basic
+    PRIVATE
+        minitorch_core
+)
+
+target_include_directories(minitorch_relu_basic
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+add_test(
+    NAME minitorch_relu_basic_test
+    COMMAND minitorch_relu_basic
 )
