@@ -20,6 +20,7 @@ add_library(minitorch_core STATIC
     src/nn/linear.cpp
     src/nn/relu.cpp
     src/nn/mse_loss.cpp
+    src/optim/sgd.cpp
 )
 
 target_include_directories(minitorch_core
@@ -133,4 +134,23 @@ target_include_directories(minitorch_mse_basic
 add_test(
     NAME minitorch_mse_basic_test
     COMMAND minitorch_mse_basic
+)
+
+add_executable(minitorch_sgd_basic
+    examples/sgd_basic.cpp
+)
+
+target_link_libraries(minitorch_sgd_basic
+    PRIVATE
+        minitorch_core
+)
+
+target_include_directories(minitorch_sgd_basic
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+add_test(
+    NAME minitorch_sgd_basic_test
+    COMMAND minitorch_sgd_basic
 )

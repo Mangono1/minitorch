@@ -200,10 +200,7 @@ void Tensor::zero_grad() {
         return;
     }
 
-    impl_->grad.assign(
-        impl_->data.size(),
-        0.0f
-    );
+    impl_->grad.clear();
 }
 
 float Tensor::item(std::size_t index) const {
