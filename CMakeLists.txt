@@ -17,6 +17,7 @@ add_library(minitorch_core STATIC
     src/cpu/cpu_ops.cpp
     src/nn/parameter.cpp
     src/nn/module.cpp
+    src/nn/linear.cpp
 )
 
 target_include_directories(minitorch_core
@@ -72,4 +73,24 @@ target_include_directories(minitorch_nn_basic
 add_test(
     NAME minitorch_nn_basic_test
     COMMAND minitorch_nn_basic
+)
+
+
+add_executable(minitorch_linear_basic
+    examples/linear_basic.cpp
+)
+
+target_link_libraries(minitorch_linear_basic
+    PRIVATE
+        minitorch_core
+)
+
+target_include_directories(minitorch_linear_basic
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+add_test(
+    NAME minitorch_linear_basic_test
+    COMMAND minitorch_linear_basic
 )

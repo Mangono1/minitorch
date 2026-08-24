@@ -806,6 +806,155 @@ Tensor Tensor::sum() const {
     return Tensor(output);
 }
 
+Tensor Tensor::add_bias_2d(
+    const Tensor& bias
+) const {
+
+    ensure_cpu(*impl_);
+    ensure_cpu(*bias.impl_);
+
+    ensure_same_device(
+        *impl_,
+        *bias.impl_
+    );
+
+    if (impl_->shape.size() != 2) {
+        throw std::invalid_argument(
+            "add_bias_2d requires a 2D tensor"
+        );
+    }
+
+    if (bias.impl_->shape.size() != 2) {
+        throw std::invalid_argument(
+            "add_bias_2d bias must be 2D"
+        );
+    }
+
+    const std::size_t rows =
+        impl_->shape[0];
+
+    const std::size_t columns =
+        impl_->shape[1];
+
+    if (
+        bias.impl_->shape[0] != 1 ||
+        bias.impl_->shape[1] != columns
+    ) {
+        throw std::invalid_argument(
+            "add_bias_2d bias shape must be [1, columns]"
+        );
+    }
+
+    std::vector<float> result(
+        impl_->data.size()
+    );
+
+    for (std::size_t i = 0; i < rows; ++i) {
+        for (std::size_t j = 0; j < columns; ++j) {
+
+            result[
+                i * columns + j
+            ] =
+                impl_->data[
+                    i * columns + j
+                ] +
+                bias.impl_->data[j];
+        }
+    }
+
+    const bool needs_grad =
+        impl_->requires_grad ||
+        bias.impl_->requires_grad;
+
+    auto output =
+        std::make_shared<TensorImpl>();
+
+    output->data = result;
+    output->shape = impl_->shape;
+    output->device = impl_->device;
+    output->dtype = DType::Float32;
+    output->requires_grad = needs_grad;
+
+    if (needs_grad) {
+
+        auto node =
+            std::make_shared<AutogradNode>();
+
+        node->parents = {
+            impl_,
+            bias.impl_
+        };
+
+        node->backward_fn =
+            [
+                a = impl_,
+                b = bias.impl_,
+                rows,
+                columns
+            ](
+                const std::vector<float>& grad
+            ) {
+
+                if (a->requires_grad) {
+
+                    accumulate_gradient(
+                        a,
+                        grad
+                    );
+                }
+
+                if (b->requires_grad) {
+
+                    std::vector<float> gb(
+                        columns,
+                        0.0f
+                    );
+
+                    for (
+                        std::size_t i = 0;
+                        i < rows;
+                        ++i
+                    ) {
+
+                        for (
+                            std::size_t j = 0;
+                            j < columns;
+                            ++j
+                        ) {
+
+                            gb[j] +=
+                                grad[
+                                    i * columns + j
+                                ];
+                        }
+                    }
+
+                    std::vector<float> gb_2d(
+                        columns,
+                        0.0f
+                    );
+
+                    for (
+                        std::size_t j = 0;
+                        j < columns;
+                        ++j
+                    ) {
+                        gb_2d[j] = gb[j];
+                    }
+
+                    accumulate_gradient(
+                        b,
+                        gb_2d
+                    );
+                }
+            };
+
+        output->grad_fn = node;
+    }
+
+    return Tensor(output);
+}
+
 void Tensor::backward() {
     if (!impl_->requires_grad) {
         throw std::runtime_error(

@@ -62,6 +62,7 @@ public:
     Tensor multiply(const Tensor& other) const;
     Tensor matmul(const Tensor& other) const;
     Tensor sum() const;
+    Tensor add_bias_2d(const Tensor& bias) const;
 
 private:
     std::shared_ptr<TensorImpl> impl_;
