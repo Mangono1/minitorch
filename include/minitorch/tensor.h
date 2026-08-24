@@ -5,24 +5,30 @@
 
 #include <cstddef>
 #include <initializer_list>
+#include <memory>
 #include <string>
 #include <vector>
 
 namespace minitorch {
 
+struct TensorImpl;
+
 class Tensor {
 public:
     Tensor();
+
     Tensor(
         const std::vector<float>& data,
         const std::vector<std::size_t>& shape,
-        Device device = Device(DeviceType::CPU)
+        Device device = Device(DeviceType::CPU),
+        bool requires_grad = false
     );
 
     Tensor(
         std::initializer_list<float> data,
         std::initializer_list<std::size_t> shape,
-        Device device = Device(DeviceType::CPU)
+        Device device = Device(DeviceType::CPU),
+        bool requires_grad = false
     );
 
     const std::vector<float>& data() const;
@@ -38,6 +44,14 @@ public:
 
     bool empty() const;
 
+    bool requires_grad() const;
+    bool has_grad() const;
+
+    Tensor grad() const;
+
+    void zero_grad();
+    void backward();
+
     float item(std::size_t index) const;
     void set_item(std::size_t index, float value);
 
@@ -47,14 +61,16 @@ public:
     Tensor subtract(const Tensor& other) const;
     Tensor multiply(const Tensor& other) const;
     Tensor matmul(const Tensor& other) const;
+    Tensor sum() const;
 
 private:
-    std::vector<float> data_;
-    std::vector<std::size_t> shape_;
-    Device device_;
-    DType dtype_;
+    std::shared_ptr<TensorImpl> impl_;
+
+    explicit Tensor(std::shared_ptr<TensorImpl> impl);
 
     void validate() const;
+
+    friend struct TensorImpl;
 };
 
 } // namespace minitorch
