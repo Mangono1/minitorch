@@ -154,3 +154,23 @@ add_test(
     NAME minitorch_sgd_basic_test
     COMMAND minitorch_sgd_basic
 )
+
+
+add_executable(minitorch_training_basic
+    examples/training_basic.cpp
+)
+
+target_link_libraries(minitorch_training_basic
+    PRIVATE
+        minitorch_core
+)
+
+target_include_directories(minitorch_training_basic
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+add_test(
+    NAME minitorch_training_basic_test
+    COMMAND minitorch_training_basic
+)
