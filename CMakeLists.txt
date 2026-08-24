@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.18)
 
 project(minitorch
-    VERSION 0.1.0
+    VERSION 0.3.1
     LANGUAGES CXX
 )
 
@@ -15,6 +15,8 @@ add_library(minitorch_core STATIC
     src/tensor.cpp
     src/device.cpp
     src/cpu/cpu_ops.cpp
+    src/nn/parameter.cpp
+    src/nn/module.cpp
 )
 
 target_include_directories(minitorch_core
@@ -50,4 +52,24 @@ enable_testing()
 add_test(
     NAME minitorch_basic_test
     COMMAND minitorch_basic
+)
+
+
+add_executable(minitorch_nn_basic
+    examples/nn_basic.cpp
+)
+
+target_link_libraries(minitorch_nn_basic
+    PRIVATE
+        minitorch_core
+)
+
+target_include_directories(minitorch_nn_basic
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+add_test(
+    NAME minitorch_nn_basic_test
+    COMMAND minitorch_nn_basic
 )
