@@ -60,6 +60,7 @@ public:
     Tensor add(const Tensor& other) const;
     Tensor subtract(const Tensor& other) const;
     Tensor multiply(const Tensor& other) const;
+    Tensor multiply_scalar(float scalar) const;
     Tensor matmul(const Tensor& other) const;
     Tensor sum() const;
     Tensor relu() const;

@@ -554,6 +554,81 @@ Tensor Tensor::multiply(
     return Tensor(output);
 }
 
+Tensor Tensor::multiply_scalar(
+    float scalar
+) const {
+    ensure_cpu(*impl_);
+
+    auto output =
+        std::make_shared<TensorImpl>();
+
+    output->data.resize(
+        impl_->data.size()
+    );
+
+    output->shape = impl_->shape;
+    output->device = impl_->device;
+    output->dtype = DType::Float32;
+    output->requires_grad =
+        impl_->requires_grad;
+
+    for (
+        std::size_t i = 0;
+        i < impl_->data.size();
+        ++i
+    ) {
+        output->data[i] =
+            impl_->data[i] * scalar;
+    }
+
+    if (impl_->requires_grad) {
+        auto node =
+            std::make_shared<AutogradNode>();
+
+        node->parents = {
+            impl_
+        };
+
+        node->backward_fn =
+            [a = impl_, scalar](
+                const std::vector<float>& grad
+            ) {
+
+                if (
+                    grad.size() !=
+                    a->data.size()
+                ) {
+                    throw std::runtime_error(
+                        "multiply_scalar backward "
+                        "gradient size mismatch"
+                    );
+                }
+
+                std::vector<float> ga(
+                    grad.size()
+                );
+
+                for (
+                    std::size_t i = 0;
+                    i < grad.size();
+                    ++i
+                ) {
+                    ga[i] =
+                        grad[i] * scalar;
+                }
+
+                accumulate_gradient(
+                    a,
+                    ga
+                );
+            };
+
+        output->grad_fn = node;
+    }
+
+    return Tensor(output);
+}
+
 Tensor Tensor::matmul(
     const Tensor& other
 ) const {
