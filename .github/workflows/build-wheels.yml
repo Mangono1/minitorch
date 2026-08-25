@@ -1,0 +1,97 @@
+name: Build CPUTorch Wheels
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    name: Linux wheel
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build wheel
+
+      - name: Build wheel
+        run: |
+          python -m build --wheel --sdist
+
+      - name: Check package
+        run: |
+          python -m pip install twine
+          python -m twine check dist/*
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cputorch-linux
+          path: dist/*
+
+  build-windows:
+    name: Windows wheel
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build wheel
+
+      - name: Build wheel
+        run: |
+          python -m build --wheel --sdist
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cputorch-windows
+          path: dist/*
+
+  build-macos:
+    name: macOS wheel
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build wheel
+
+      - name: Build wheel
+        run: |
+          python -m build --wheel --sdist
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cputorch-macos
+          path: dist/*
