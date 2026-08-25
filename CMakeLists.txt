@@ -175,3 +175,23 @@ add_test(
     NAME minitorch_training_basic_test
     COMMAND minitorch_training_basic
 )
+
+
+add_executable(minitorch_sequential_basic
+    examples/sequential_basic.cpp
+)
+
+target_link_libraries(minitorch_sequential_basic
+    PRIVATE
+        minitorch_core
+)
+
+target_include_directories(minitorch_sequential_basic
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+add_test(
+    NAME minitorch_sequential_basic_test
+    COMMAND minitorch_sequential_basic
+)
