@@ -1,4 +1,4 @@
-name: Build CPUTorch Wheels
+name: Build and Publish CPUTorch
 
 on:
   push:
@@ -6,92 +6,67 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
-  build-linux:
-    name: Linux wheel
+  build:
+    name: Build wheels
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux
+          - os: windows-latest
+            name: windows
+          - os: macos-13
+            name: macos
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install cibuildwheel
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install cibuildwheel
+
+      - name: Build wheels
+        run: |
+          python -m cibuildwheel --output-dir wheelhouse
+
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cputorch-${{ matrix.name }}
+          path: wheelhouse/*.whl
+
+  publish:
+    name: Publish to PyPI
+    needs: build
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Download all wheels
+        uses: actions/download-artifact@v4
         with:
-          python-version: "3.13"
+          path: dist
+          pattern: cputorch-*
+          merge-multiple: true
 
-      - name: Install build tools
+      - name: Show distributions
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install build wheel
+          echo "===== DISTRIBUTIONS ====="
+          ls -lah dist/
 
-      - name: Build wheel
-        run: |
-          python -m build --wheel --sdist
-
-      - name: Check package
-        run: |
-          python -m pip install twine
-          python -m twine check dist/*
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: cputorch-linux
-          path: dist/*
-
-  build-windows:
-    name: Windows wheel
-    runs-on: windows-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
-      - name: Install build tools
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install build wheel
-
-      - name: Build wheel
-        run: |
-          python -m build --wheel --sdist
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: cputorch-windows
-          path: dist/*
-
-  build-macos:
-    name: macOS wheel
-    runs-on: macos-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
-      - name: Install build tools
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install build wheel
-
-      - name: Build wheel
-        run: |
-          python -m build --wheel --sdist
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: cputorch-macos
-          path: dist/*
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
