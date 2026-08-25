@@ -25,6 +25,7 @@ add_library(minitorch_core STATIC
     src/vulkan/context.cpp
     src/vulkan/buffer.cpp
     src/vulkan/compute.cpp
+    src/vulkan/pipeline.cpp
 )
 
 target_include_directories(minitorch_core
@@ -276,4 +277,24 @@ target_include_directories(minitorch_vulkan_compute_basic
 add_test(
     NAME minitorch_vulkan_compute_basic_test
     COMMAND minitorch_vulkan_compute_basic
+)
+
+add_executable(minitorch_vulkan_shader_basic
+    examples/vulkan_shader_basic.cpp
+)
+
+target_link_libraries(minitorch_vulkan_shader_basic
+    PRIVATE
+        minitorch_core
+        vulkan
+)
+
+target_include_directories(minitorch_vulkan_shader_basic
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+add_test(
+    NAME minitorch_vulkan_shader_basic_test
+    COMMAND minitorch_vulkan_shader_basic
 )
