@@ -298,3 +298,32 @@ add_test(
     NAME minitorch_vulkan_shader_basic_test
     COMMAND minitorch_vulkan_shader_basic
 )
+
+
+# ============================================================
+# MiniTorch V0.5 Hardware Profiler
+# ============================================================
+
+target_sources(minitorch_core
+    PRIVATE
+        src/hardware_profiler.cpp
+)
+
+add_executable(minitorch_hardware_profiler
+    examples/hardware_profiler_basic.cpp
+)
+
+target_link_libraries(minitorch_hardware_profiler
+    PRIVATE
+        minitorch_core
+)
+
+target_include_directories(minitorch_hardware_profiler
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+add_test(
+    NAME minitorch_hardware_profiler_test
+    COMMAND minitorch_hardware_profiler
+)
