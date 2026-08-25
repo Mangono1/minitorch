@@ -52,6 +52,14 @@ public:
         std::size_t count
     );
 
+    void dispatch_scalar(
+        VulkanCompute& compute,
+        const VulkanBuffer& input,
+        VulkanBuffer& output,
+        std::size_t count,
+        float scalar
+    );
+
 private:
     VulkanContext* context_;
 

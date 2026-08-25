@@ -1,0 +1,27 @@
+#version 450
+
+layout(local_size_x = 64) in;
+
+layout(set = 0, binding = 0) readonly buffer Input {
+    float input_data[];
+};
+
+layout(set = 0, binding = 1) writeonly buffer Output {
+    float output_data[];
+};
+
+layout(push_constant) uniform PushConstants {
+    uint count;
+    float scalar;
+} params;
+
+void main() {
+    uint index = gl_GlobalInvocationID.x;
+
+    if (index >= params.count) {
+        return;
+    }
+
+    output_data[index] =
+        input_data[index] * params.scalar;
+}

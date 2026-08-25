@@ -556,6 +556,247 @@ void VulkanComputePipeline::dispatch(
     );
 }
 
+
+void VulkanComputePipeline::dispatch_scalar(
+    VulkanCompute& compute,
+    const VulkanBuffer& input,
+    VulkanBuffer& output,
+    std::size_t count,
+    float scalar
+) {
+
+    if (!valid()) {
+        throw std::runtime_error(
+            "Invalid VulkanComputePipeline"
+        );
+    }
+
+    if (!compute.valid()) {
+        throw std::runtime_error(
+            "Invalid VulkanCompute"
+        );
+    }
+
+    if (!input.valid()) {
+        throw std::runtime_error(
+            "Invalid Vulkan input buffer"
+        );
+    }
+
+    if (!output.valid()) {
+        throw std::runtime_error(
+            "Invalid Vulkan output buffer"
+        );
+    }
+
+    if (count == 0) {
+        throw std::invalid_argument(
+            "Vulkan compute count must be greater than zero"
+        );
+    }
+
+    const std::size_t required_size =
+        count * sizeof(float);
+
+    if (input.size() < required_size) {
+        throw std::invalid_argument(
+            "Input buffer is too small"
+        );
+    }
+
+    if (output.size() < required_size) {
+        throw std::invalid_argument(
+            "Output buffer is too small"
+        );
+    }
+
+    VkDescriptorPoolSize pool_size{};
+
+    pool_size.type =
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+
+    pool_size.descriptorCount = 2;
+
+    VkDescriptorPoolCreateInfo pool_info{};
+
+    pool_info.sType =
+        VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+
+    pool_info.maxSets = 1;
+    pool_info.poolSizeCount = 1;
+    pool_info.pPoolSizes = &pool_size;
+
+    VkDescriptorPool descriptor_pool =
+        VK_NULL_HANDLE;
+
+    check(
+        vkCreateDescriptorPool(
+            context_->device(),
+            &pool_info,
+            nullptr,
+            &descriptor_pool
+        ),
+        "vkCreateDescriptorPool"
+    );
+
+    try {
+
+        VkDescriptorSetAllocateInfo allocate_info{};
+
+        allocate_info.sType =
+            VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+
+        allocate_info.descriptorPool =
+            descriptor_pool;
+
+        allocate_info.descriptorSetCount = 1;
+
+        allocate_info.pSetLayouts =
+            &descriptor_set_layout_;
+
+        VkDescriptorSet descriptor_set =
+            VK_NULL_HANDLE;
+
+        check(
+            vkAllocateDescriptorSets(
+                context_->device(),
+                &allocate_info,
+                &descriptor_set
+            ),
+            "vkAllocateDescriptorSets"
+        );
+
+        VkDescriptorBufferInfo input_info{};
+
+        input_info.buffer =
+            input.handle();
+
+        input_info.offset = 0;
+        input_info.range = required_size;
+
+        VkDescriptorBufferInfo output_info{};
+
+        output_info.buffer =
+            output.handle();
+
+        output_info.offset = 0;
+        output_info.range = required_size;
+
+        VkWriteDescriptorSet writes[2]{};
+
+        writes[0].sType =
+            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+
+        writes[0].dstSet =
+            descriptor_set;
+
+        writes[0].dstBinding = 0;
+        writes[0].descriptorCount = 1;
+
+        writes[0].descriptorType =
+            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+
+        writes[0].pBufferInfo =
+            &input_info;
+
+        writes[1].sType =
+            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+
+        writes[1].dstSet =
+            descriptor_set;
+
+        writes[1].dstBinding = 1;
+        writes[1].descriptorCount = 1;
+
+        writes[1].descriptorType =
+            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+
+        writes[1].pBufferInfo =
+            &output_info;
+
+        vkUpdateDescriptorSets(
+            context_->device(),
+            2,
+            writes,
+            0,
+            nullptr
+        );
+
+        struct PushConstants {
+            std::uint32_t count;
+            float scalar;
+        };
+
+        PushConstants push_constants{
+            static_cast<std::uint32_t>(count),
+            scalar
+        };
+
+        compute.begin();
+
+        VkCommandBuffer command =
+            compute.command_buffer();
+
+        vkCmdBindPipeline(
+            command,
+            VK_PIPELINE_BIND_POINT_COMPUTE,
+            pipeline_
+        );
+
+        vkCmdBindDescriptorSets(
+            command,
+            VK_PIPELINE_BIND_POINT_COMPUTE,
+            pipeline_layout_,
+            0,
+            1,
+            &descriptor_set,
+            0,
+            nullptr
+        );
+
+        vkCmdPushConstants(
+            command,
+            pipeline_layout_,
+            VK_SHADER_STAGE_COMPUTE_BIT,
+            0,
+            sizeof(PushConstants),
+            &push_constants
+        );
+
+        const std::uint32_t groups =
+            static_cast<std::uint32_t>(
+                (count + 63) / 64
+            );
+
+        vkCmdDispatch(
+            command,
+            groups,
+            1,
+            1
+        );
+
+        compute.end();
+
+        compute.submit_and_wait();
+
+        vkDestroyDescriptorPool(
+            context_->device(),
+            descriptor_pool,
+            nullptr
+        );
+    }
+    catch (...) {
+
+        vkDestroyDescriptorPool(
+            context_->device(),
+            descriptor_pool,
+            nullptr
+        );
+
+        throw;
+    }
+}
+
 void VulkanComputePipeline::destroy() {
 
     if (context_ == nullptr) {
