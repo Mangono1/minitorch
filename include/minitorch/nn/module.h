@@ -20,6 +20,8 @@ public:
 
     virtual std::string name() const;
 
+    virtual Tensor forward(const Tensor& input) const;
+
     void register_parameter(
         const std::string& name,
         const Tensor& tensor

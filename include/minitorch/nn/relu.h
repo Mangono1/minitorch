@@ -12,7 +12,7 @@ public:
 
     Tensor forward(
         const Tensor& input
-    ) const;
+    ) const override;
 };
 
 } // namespace minitorch

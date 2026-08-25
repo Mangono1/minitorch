@@ -20,6 +20,7 @@ add_library(minitorch_core STATIC
     src/nn/linear.cpp
     src/nn/relu.cpp
     src/nn/mse_loss.cpp
+    src/nn/sequential.cpp
     src/optim/sgd.cpp
 )
 

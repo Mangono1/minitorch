@@ -4,10 +4,21 @@
 
 namespace minitorch {
 
-Module::Module() = default;
+Module::Module()
+    : parameters_(),
+      modules_() {
+}
 
 std::string Module::name() const {
     return "Module";
+}
+
+Tensor Module::forward(
+    const Tensor&
+) const {
+    throw std::runtime_error(
+        "Module::forward() is not implemented"
+    );
 }
 
 void Module::register_parameter(
@@ -20,25 +31,7 @@ void Module::register_parameter(
         );
     }
 
-    if (!tensor.requires_grad()) {
-        throw std::invalid_argument(
-            "Registered parameter must require gradients"
-        );
-    }
-
-    if (parameters_.count(name)) {
-        throw std::invalid_argument(
-            "Parameter already registered: " + name
-        );
-    }
-
-    if (modules_.count(name)) {
-        throw std::invalid_argument(
-            "A module with this name is already registered: " + name
-        );
-    }
-
-    parameters_.emplace(
+    parameters_.insert_or_assign(
         name,
         Parameter(tensor, name)
     );
@@ -54,27 +47,12 @@ void Module::register_parameter(
         );
     }
 
-    if (!parameter.requires_grad()) {
-        throw std::invalid_argument(
-            "Registered parameter must require gradients"
-        );
-    }
-
-    if (parameters_.count(name)) {
-        throw std::invalid_argument(
-            "Parameter already registered: " + name
-        );
-    }
-
-    if (modules_.count(name)) {
-        throw std::invalid_argument(
-            "A module with this name is already registered: " + name
-        );
-    }
-
-    parameters_.emplace(
+    parameters_.insert_or_assign(
         name,
-        Parameter(parameter.tensor(), name)
+        Parameter(
+            parameter.tensor(),
+            name
+        )
     );
 }
 
@@ -90,31 +68,99 @@ void Module::register_module(
 
     if (!module) {
         throw std::invalid_argument(
-            "Cannot register null module"
+            "Cannot register a null module"
         );
     }
 
-    if (modules_.count(name)) {
-        throw std::invalid_argument(
-            "Module already registered: " + name
-        );
-    }
-
-    if (parameters_.count(name)) {
-        throw std::invalid_argument(
-            "A parameter with this name is already registered: " + name
-        );
-    }
-
-    modules_.emplace(
+    modules_.insert_or_assign(
         name,
         std::move(module)
     );
 }
 
+std::vector<Parameter*> Module::parameters() {
+    std::vector<Parameter*> result;
+
+    for (auto& entry : parameters_) {
+        result.push_back(&entry.second);
+    }
+
+    for (auto& entry : modules_) {
+        if (entry.second) {
+            auto child_parameters =
+                entry.second->parameters();
+
+            result.insert(
+                result.end(),
+                child_parameters.begin(),
+                child_parameters.end()
+            );
+        }
+    }
+
+    return result;
+}
+
+std::vector<const Parameter*> Module::parameters() const {
+    std::vector<const Parameter*> result;
+
+    for (const auto& entry : parameters_) {
+        result.push_back(&entry.second);
+    }
+
+    for (const auto& entry : modules_) {
+        if (entry.second) {
+            auto child_parameters =
+                entry.second->parameters();
+
+            result.insert(
+                result.end(),
+                child_parameters.begin(),
+                child_parameters.end()
+            );
+        }
+    }
+
+    return result;
+}
+
+std::vector<
+    std::pair<std::string, Parameter*>
+> Module::named_parameters() {
+
+    std::vector<
+        std::pair<std::string, Parameter*>
+    > result;
+
+    collect_named_parameters(
+        "",
+        result
+    );
+
+    return result;
+}
+
+std::vector<
+    std::pair<std::string, const Parameter*>
+> Module::named_parameters() const {
+
+    std::vector<
+        std::pair<std::string, const Parameter*>
+    > result;
+
+    collect_named_parameters(
+        "",
+        result
+    );
+
+    return result;
+}
+
 void Module::collect_named_parameters(
     const std::string& prefix,
-    std::vector<std::pair<std::string, Parameter*>>& output
+    std::vector<
+        std::pair<std::string, Parameter*>
+    >& output
 ) {
     for (auto& entry : parameters_) {
         const std::string full_name =
@@ -129,6 +175,10 @@ void Module::collect_named_parameters(
     }
 
     for (auto& entry : modules_) {
+        if (!entry.second) {
+            continue;
+        }
+
         const std::string child_prefix =
             prefix.empty()
                 ? entry.first
@@ -143,7 +193,9 @@ void Module::collect_named_parameters(
 
 void Module::collect_named_parameters(
     const std::string& prefix,
-    std::vector<std::pair<std::string, const Parameter*>>& output
+    std::vector<
+        std::pair<std::string, const Parameter*>
+    >& output
 ) const {
     for (const auto& entry : parameters_) {
         const std::string full_name =
@@ -158,6 +210,10 @@ void Module::collect_named_parameters(
     }
 
     for (const auto& entry : modules_) {
+        if (!entry.second) {
+            continue;
+        }
+
         const std::string child_prefix =
             prefix.empty()
                 ? entry.first
@@ -170,59 +226,15 @@ void Module::collect_named_parameters(
     }
 }
 
-std::vector<Parameter*> Module::parameters() {
-    std::vector<Parameter*> result;
-
-    auto named = named_parameters();
-
-    for (auto& item : named) {
-        result.push_back(item.second);
-    }
-
-    return result;
-}
-
-std::vector<const Parameter*> Module::parameters() const {
-    std::vector<const Parameter*> result;
-
-    auto named = named_parameters();
-
-    for (const auto& item : named) {
-        result.push_back(item.second);
-    }
-
-    return result;
-}
-
-std::vector<std::pair<std::string, Parameter*>> Module::named_parameters() {
-    std::vector<std::pair<std::string, Parameter*>> result;
-
-    collect_named_parameters(
-        "",
-        result
-    );
-
-    return result;
-}
-
-std::vector<std::pair<std::string, const Parameter*>> Module::named_parameters() const {
-    std::vector<std::pair<std::string, const Parameter*>> result;
-
-    collect_named_parameters(
-        "",
-        result
-    );
-
-    return result;
-}
-
 void Module::zero_grad() {
     for (auto& entry : parameters_) {
         entry.second.zero_grad();
     }
 
     for (auto& entry : modules_) {
-        entry.second->zero_grad();
+        if (entry.second) {
+            entry.second->zero_grad();
+        }
     }
 }
 

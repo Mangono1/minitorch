@@ -19,7 +19,7 @@ public:
 
     Tensor forward(
         const Tensor& input
-    ) const;
+    ) const override;
 
     std::size_t in_features() const;
     std::size_t out_features() const;
