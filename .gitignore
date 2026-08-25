@@ -1,8 +1,22 @@
+# Build
 build/
+build_python/
+dist/
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.so
-*.o
-*.a
+*.pyd
+*.egg-info/
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# IDE
 .vscode/
 .idea/
