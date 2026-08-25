@@ -8,17 +8,25 @@ namespace minitorch {
 
 VulkanComputePipeline::VulkanComputePipeline(
     VulkanContext& context,
-    const std::string& shader_path
+    const std::string& shader_path,
+    std::uint32_t binding_count
 )
     : context_(&context),
       shader_module_(VK_NULL_HANDLE),
       descriptor_set_layout_(VK_NULL_HANDLE),
       pipeline_layout_(VK_NULL_HANDLE),
-      pipeline_(VK_NULL_HANDLE) {
+      pipeline_(VK_NULL_HANDLE),
+      binding_count_(binding_count) {
 
     if (!context.available()) {
         throw std::runtime_error(
             "VulkanComputePipeline requires an available Vulkan context"
+        );
+    }
+
+    if (binding_count_ == 0) {
+        throw std::invalid_argument(
+            "VulkanComputePipeline binding count must be greater than zero"
         );
     }
 
@@ -41,13 +49,15 @@ VulkanComputePipeline::VulkanComputePipeline(
       shader_module_(other.shader_module_),
       descriptor_set_layout_(other.descriptor_set_layout_),
       pipeline_layout_(other.pipeline_layout_),
-      pipeline_(other.pipeline_) {
+      pipeline_(other.pipeline_),
+      binding_count_(other.binding_count_) {
 
     other.context_ = nullptr;
     other.shader_module_ = VK_NULL_HANDLE;
     other.descriptor_set_layout_ = VK_NULL_HANDLE;
     other.pipeline_layout_ = VK_NULL_HANDLE;
     other.pipeline_ = VK_NULL_HANDLE;
+    other.binding_count_ = 0;
 }
 
 VulkanComputePipeline& VulkanComputePipeline::operator=(
@@ -65,12 +75,14 @@ VulkanComputePipeline& VulkanComputePipeline::operator=(
     descriptor_set_layout_ = other.descriptor_set_layout_;
     pipeline_layout_ = other.pipeline_layout_;
     pipeline_ = other.pipeline_;
+    binding_count_ = other.binding_count_;
 
     other.context_ = nullptr;
     other.shader_module_ = VK_NULL_HANDLE;
     other.descriptor_set_layout_ = VK_NULL_HANDLE;
     other.pipeline_layout_ = VK_NULL_HANDLE;
     other.pipeline_ = VK_NULL_HANDLE;
+    other.binding_count_ = 0;
 
     return *this;
 }
@@ -82,7 +94,8 @@ bool VulkanComputePipeline::valid() const {
         shader_module_ != VK_NULL_HANDLE &&
         descriptor_set_layout_ != VK_NULL_HANDLE &&
         pipeline_layout_ != VK_NULL_HANDLE &&
-        pipeline_ != VK_NULL_HANDLE;
+        pipeline_ != VK_NULL_HANDLE &&
+        binding_count_ > 0;
 }
 
 std::vector<std::uint32_t>
@@ -101,8 +114,7 @@ VulkanComputePipeline::read_spirv(
         );
     }
 
-    const std::streamsize size =
-        file.tellg();
+    const std::streamsize size = file.tellg();
 
     if (size <= 0) {
         throw std::runtime_error(
@@ -123,8 +135,8 @@ VulkanComputePipeline::read_spirv(
     file.seekg(0);
 
     std::vector<std::uint32_t> code(
-        static_cast<std::size_t>(size)
-        / sizeof(std::uint32_t)
+        static_cast<std::size_t>(size) /
+        sizeof(std::uint32_t)
     );
 
     file.read(
@@ -169,29 +181,33 @@ void VulkanComputePipeline::create_shader_module(
 
 void VulkanComputePipeline::create_descriptor_set_layout() {
 
-    VkDescriptorSetLayoutBinding bindings[2]{};
+    std::vector<VkDescriptorSetLayoutBinding> bindings(
+        binding_count_
+    );
 
-    bindings[0].binding = 0;
-    bindings[0].descriptorType =
-        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    bindings[0].descriptorCount = 1;
-    bindings[0].stageFlags =
-        VK_SHADER_STAGE_COMPUTE_BIT;
+    for (std::uint32_t i = 0; i < binding_count_; ++i) {
 
-    bindings[1].binding = 1;
-    bindings[1].descriptorType =
-        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    bindings[1].descriptorCount = 1;
-    bindings[1].stageFlags =
-        VK_SHADER_STAGE_COMPUTE_BIT;
+        bindings[i].binding = i;
+
+        bindings[i].descriptorType =
+            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+
+        bindings[i].descriptorCount = 1;
+
+        bindings[i].stageFlags =
+            VK_SHADER_STAGE_COMPUTE_BIT;
+    }
 
     VkDescriptorSetLayoutCreateInfo info{};
 
     info.sType =
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 
-    info.bindingCount = 2;
-    info.pBindings = bindings;
+    info.bindingCount =
+        binding_count_;
+
+    info.pBindings =
+        bindings.data();
 
     check(
         vkCreateDescriptorSetLayout(
@@ -212,7 +228,9 @@ void VulkanComputePipeline::create_pipeline_layout() {
         VK_SHADER_STAGE_COMPUTE_BIT;
 
     push_constant.offset = 0;
-    push_constant.size = sizeof(std::uint32_t);
+
+    push_constant.size =
+        sizeof(std::uint32_t);
 
     VkPipelineLayoutCreateInfo info{};
 
@@ -220,10 +238,12 @@ void VulkanComputePipeline::create_pipeline_layout() {
         VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 
     info.setLayoutCount = 1;
+
     info.pSetLayouts =
         &descriptor_set_layout_;
 
     info.pushConstantRangeCount = 1;
+
     info.pPushConstantRanges =
         &push_constant;
 
@@ -280,8 +300,7 @@ void VulkanComputePipeline::create_compute_pipeline() {
 
 void VulkanComputePipeline::dispatch(
     VulkanCompute& compute,
-    const VulkanBuffer& input,
-    VulkanBuffer& output,
+    const std::vector<VulkanBuffer*>& buffers,
     std::size_t count
 ) {
 
@@ -297,15 +316,9 @@ void VulkanComputePipeline::dispatch(
         );
     }
 
-    if (!input.valid()) {
-        throw std::runtime_error(
-            "Invalid Vulkan input buffer"
-        );
-    }
-
-    if (!output.valid()) {
-        throw std::runtime_error(
-            "Invalid Vulkan output buffer"
+    if (buffers.size() != binding_count_) {
+        throw std::invalid_argument(
+            "Vulkan compute buffer count does not match pipeline bindings"
         );
     }
 
@@ -318,16 +331,25 @@ void VulkanComputePipeline::dispatch(
     const std::size_t required_size =
         count * sizeof(float);
 
-    if (input.size() < required_size) {
-        throw std::invalid_argument(
-            "Input buffer is too small"
-        );
-    }
+    for (std::size_t i = 0; i < buffers.size(); ++i) {
 
-    if (output.size() < required_size) {
-        throw std::invalid_argument(
-            "Output buffer is too small"
-        );
+        if (buffers[i] == nullptr) {
+            throw std::invalid_argument(
+                "Vulkan compute buffer is null"
+            );
+        }
+
+        if (!buffers[i]->valid()) {
+            throw std::runtime_error(
+                "Invalid Vulkan compute buffer"
+            );
+        }
+
+        if (buffers[i]->size() < required_size) {
+            throw std::invalid_argument(
+                "Vulkan compute buffer is too small"
+            );
+        }
     }
 
     VkDescriptorPoolSize pool_size{};
@@ -335,7 +357,8 @@ void VulkanComputePipeline::dispatch(
     pool_size.type =
         VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 
-    pool_size.descriptorCount = 2;
+    pool_size.descriptorCount =
+        binding_count_;
 
     VkDescriptorPoolCreateInfo pool_info{};
 
@@ -343,8 +366,11 @@ void VulkanComputePipeline::dispatch(
         VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 
     pool_info.maxSets = 1;
+
     pool_info.poolSizeCount = 1;
-    pool_info.pPoolSizes = &pool_size;
+
+    pool_info.pPoolSizes =
+        &pool_size;
 
     VkDescriptorPool descriptor_pool =
         VK_NULL_HANDLE;
@@ -386,62 +412,52 @@ void VulkanComputePipeline::dispatch(
             "vkAllocateDescriptorSets"
         );
 
-        VkDescriptorBufferInfo input_info{};
+        std::vector<VkDescriptorBufferInfo> buffer_infos(
+            binding_count_
+        );
 
-        input_info.buffer =
-            input.handle();
+        std::vector<VkWriteDescriptorSet> writes(
+            binding_count_
+        );
 
-        input_info.offset = 0;
-        input_info.range = required_size;
+        for (
+            std::uint32_t i = 0;
+            i < binding_count_;
+            ++i
+        ) {
 
-        VkDescriptorBufferInfo output_info{};
+            buffer_infos[i].buffer =
+                buffers[i]->handle();
 
-        output_info.buffer =
-            output.handle();
+            buffer_infos[i].offset = 0;
 
-        output_info.offset = 0;
-        output_info.range = required_size;
+            buffer_infos[i].range =
+                required_size;
 
-        VkWriteDescriptorSet writes[2]{};
+            writes[i].sType =
+                VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 
-        writes[0].sType =
-            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            writes[i].dstSet =
+                descriptor_set;
 
-        writes[0].dstSet =
-            descriptor_set;
+            writes[i].dstBinding =
+                i;
 
-        writes[0].dstBinding = 0;
-        writes[0].dstArrayElement = 0;
+            writes[i].dstArrayElement = 0;
 
-        writes[0].descriptorCount = 1;
+            writes[i].descriptorCount = 1;
 
-        writes[0].descriptorType =
-            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            writes[i].descriptorType =
+                VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 
-        writes[0].pBufferInfo =
-            &input_info;
-
-        writes[1].sType =
-            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-
-        writes[1].dstSet =
-            descriptor_set;
-
-        writes[1].dstBinding = 1;
-        writes[1].dstArrayElement = 0;
-
-        writes[1].descriptorCount = 1;
-
-        writes[1].descriptorType =
-            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-
-        writes[1].pBufferInfo =
-            &output_info;
+            writes[i].pBufferInfo =
+                &buffer_infos[i];
+        }
 
         vkUpdateDescriptorSets(
             context_->device(),
-            2,
-            writes,
+            binding_count_,
+            writes.data(),
             0,
             nullptr
         );
@@ -515,6 +531,31 @@ void VulkanComputePipeline::dispatch(
     }
 }
 
+void VulkanComputePipeline::dispatch(
+    VulkanCompute& compute,
+    const VulkanBuffer& input,
+    VulkanBuffer& output,
+    std::size_t count
+) {
+
+    if (binding_count_ != 2) {
+        throw std::runtime_error(
+            "Two-buffer dispatch requires a pipeline with 2 bindings"
+        );
+    }
+
+    std::vector<VulkanBuffer*> buffers{
+        const_cast<VulkanBuffer*>(&input),
+        &output
+    };
+
+    dispatch(
+        compute,
+        buffers,
+        count
+    );
+}
+
 void VulkanComputePipeline::destroy() {
 
     if (context_ == nullptr) {
@@ -554,8 +595,7 @@ void VulkanComputePipeline::destroy() {
     }
 
     if (
-        descriptor_set_layout_
-        != VK_NULL_HANDLE
+        descriptor_set_layout_ != VK_NULL_HANDLE
     ) {
 
         vkDestroyDescriptorSetLayout(
@@ -581,6 +621,7 @@ void VulkanComputePipeline::destroy() {
     }
 
     context_ = nullptr;
+    binding_count_ = 0;
 }
 
 void VulkanComputePipeline::check(

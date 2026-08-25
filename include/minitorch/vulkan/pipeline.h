@@ -15,7 +15,8 @@ class VulkanComputePipeline {
 public:
     VulkanComputePipeline(
         VulkanContext& context,
-        const std::string& shader_path
+        const std::string& shader_path,
+        std::uint32_t binding_count = 2
     );
 
     ~VulkanComputePipeline();
@@ -40,6 +41,12 @@ public:
 
     void dispatch(
         VulkanCompute& compute,
+        const std::vector<VulkanBuffer*>& buffers,
+        std::size_t count
+    );
+
+    void dispatch(
+        VulkanCompute& compute,
         const VulkanBuffer& input,
         VulkanBuffer& output,
         std::size_t count
@@ -52,6 +59,8 @@ private:
     VkDescriptorSetLayout descriptor_set_layout_;
     VkPipelineLayout pipeline_layout_;
     VkPipeline pipeline_;
+
+    std::uint32_t binding_count_;
 
     void create_shader_module(
         const std::vector<std::uint32_t>& code
