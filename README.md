@@ -28,9 +28,9 @@ https://github.com/Mangono1/minitorch
 
 ## Current Version
 
-**CPUTorch V0.5.3**
+**CPUTorch V0.5.4**
 
-## V0.5.3
+## V0.5.4
 
 Current development includes:
 
@@ -63,7 +63,7 @@ Install the released package directly from PyPI:
 
 Or install a specific version:
 
-    python -m pip install cputorch==0.5.3
+    python -m pip install cputorch==0.5.4
 
 ## Quick Example
 
