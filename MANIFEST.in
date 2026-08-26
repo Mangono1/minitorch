@@ -1,0 +1,15 @@
+include README.md
+include LICENSE
+include pyproject.toml
+include setup.py
+
+recursive-include include *.h
+recursive-include include *.hpp
+recursive-include src *.cpp
+recursive-include src *.h
+recursive-include src *.hpp
+recursive-include python *.cpp
+recursive-include python *.h
+recursive-include python *.hpp
+
+recursive-include cputorch *.py
