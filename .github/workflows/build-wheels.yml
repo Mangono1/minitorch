@@ -123,3 +123,10 @@ jobs:
           name: cputorch-all-wheels
           path: all-wheels/*.whl
           if-no-files-found: error
+
+      - name: Publish to PyPI
+        if: github.ref == 'refs/heads/main'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages-dir: all-wheels/
