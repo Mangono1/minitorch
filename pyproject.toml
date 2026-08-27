@@ -1,28 +1,19 @@
 [build-system]
-requires = [
-    "setuptools>=68"
-]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "cputorch"
-version = "0.5.7"
+version = "0.5.8"
 description = "A lightweight tensor and neural network framework with CPU and Vulkan backends"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
-authors = [
-    {name = "Frandika Imam Arifin"}
-]
-keywords = [
-    "machine-learning",
-    "deep-learning",
-    "tensor",
-    "neural-network",
-    "cpu",
-    "vulkan",
-    "ai"
-]
+
+authors = [{name = "Frandika Imam Arifin"}]
+
+keywords = ["machine-learning", "deep-learning", "tensor", "neural-network", "cpu", "vulkan", "ai"]
+
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",

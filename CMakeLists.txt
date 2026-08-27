@@ -1,7 +1,7 @@
-cmake_minimum_required(VERSION 3.18)
+﻿cmake_minimum_required(VERSION 3.18)
 
 project(minitorch
-    VERSION 0.5.7
+    VERSION 0.5.8
     LANGUAGES CXX
 )
 
@@ -400,3 +400,4 @@ message(STATUS "Optimizer       : ENABLED")
 message(STATUS "Profiler        : ENABLED")
 message(STATUS "================================================")
 message(STATUS "")
+

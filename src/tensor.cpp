@@ -1,4 +1,4 @@
-#include "minitorch/tensor.h"
+﻿#include "minitorch/tensor.h"
 
 #include <algorithm>
 #include <functional>
@@ -225,6 +225,116 @@ void Tensor::set_item(
 
     impl_->data[index] = value;
 }
+Tensor Tensor::slice(
+    const std::vector<std::size_t>& starts,
+    const std::vector<std::size_t>& stops,
+    const std::vector<std::size_t>& steps
+) const {
+
+    ensure_cpu(*impl_);
+
+    const std::size_t ndim = impl_->shape.size();
+
+    if (
+        starts.size() != ndim ||
+        stops.size() != ndim ||
+        steps.size() != ndim
+    ) {
+        throw std::invalid_argument(
+            "slice requires starts, stops and steps for every dimension"
+        );
+    }
+
+    for (std::size_t d = 0; d < ndim; ++d) {
+
+        if (steps[d] == 0) {
+            throw std::invalid_argument(
+                "slice step cannot be zero"
+            );
+        }
+
+        if (starts[d] > impl_->shape[d]) {
+            throw std::out_of_range(
+                "slice start out of range"
+            );
+        }
+
+        if (stops[d] > impl_->shape[d]) {
+            throw std::out_of_range(
+                "slice stop out of range"
+            );
+        }
+    }
+
+    std::vector<std::size_t> output_shape(ndim);
+
+    for (std::size_t d = 0; d < ndim; ++d) {
+
+        if (starts[d] >= stops[d]) {
+            output_shape[d] = 0;
+        }
+        else {
+            output_shape[d] =
+                (stops[d] - starts[d] + steps[d] - 1) /
+                steps[d];
+        }
+    }
+
+    std::size_t output_size = 1;
+
+    for (std::size_t d = 0; d < ndim; ++d) {
+        output_size *= output_shape[d];
+    }
+
+    if (ndim == 0) {
+        output_size = 1;
+    }
+
+    std::vector<float> result(output_size);
+
+    if (output_size > 0 && ndim > 0) {
+
+        std::vector<std::size_t> indices(ndim, 0);
+
+        for (std::size_t out_index = 0;
+             out_index < output_size;
+             ++out_index) {
+
+            std::size_t remaining = out_index;
+            std::size_t source_offset = 0;
+
+            std::size_t stride = 1;
+
+            for (std::size_t d = ndim; d-- > 0;) {
+
+                const std::size_t coordinate =
+                    remaining % output_shape[d];
+
+                remaining /= output_shape[d];
+
+                const std::size_t source_coordinate =
+                    starts[d] +
+                    coordinate * steps[d];
+
+                source_offset +=
+                    source_coordinate * stride;
+
+                stride *= impl_->shape[d];
+            }
+
+            result[out_index] =
+                impl_->data[source_offset];
+        }
+    }
+
+    return Tensor(
+        result,
+        output_shape,
+        impl_->device,
+        false
+    );
+}
+
 
 void Tensor::validate() const {
     if (impl_->shape.empty()) {
@@ -1177,3 +1287,4 @@ void Tensor::backward() {
 }
 
 } // namespace minitorch
+
