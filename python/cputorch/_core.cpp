@@ -1,4 +1,4 @@
-#define PY_SSIZE_T_CLEAN
+﻿#define PY_SSIZE_T_CLEAN
 
 #include <Python.h>
 
@@ -941,6 +941,322 @@ static PyObject* PyTensor_backward(
    Tensor methods
    ============================================================ */
 
+
+/* ============================================================
+   Native Python indexing
+   ============================================================ */
+
+static bool PyIndexToSizeT(
+    PyObject* object,
+    std::size_t& value
+) {
+    if (!PyLong_Check(object)) {
+        return false;
+    }
+
+    long long number =
+        PyLong_AsLongLong(object);
+
+    if (PyErr_Occurred()) {
+        return false;
+    }
+
+    if (number < 0) {
+        PyErr_SetString(
+            PyExc_IndexError,
+            "negative Tensor indices are not supported yet"
+        );
+        return false;
+    }
+
+    value =
+        static_cast<std::size_t>(number);
+
+    return true;
+}
+
+
+static PyObject* PyTensor_getitem(
+    PyTensor* self,
+    PyObject* key
+) {
+    try {
+
+        const auto& shape =
+            self->tensor->shape();
+
+        const std::size_t ndim =
+            shape.size();
+
+        std::vector<std::size_t> starts(
+            ndim,
+            0
+        );
+
+        std::vector<std::size_t> stops =
+            shape;
+
+        std::vector<std::size_t> steps(
+            ndim,
+            1
+        );
+
+        /*
+         * -----------------------------------------------------
+         * Integer index
+         *
+         * t[0]
+         * -----------------------------------------------------
+         */
+
+        if (PyLong_Check(key)) {
+
+            if (ndim == 0) {
+                PyErr_SetString(
+                    PyExc_IndexError,
+                    "cannot index a scalar Tensor"
+                );
+                return nullptr;
+            }
+
+            std::size_t index = 0;
+
+            if (!PyIndexToSizeT(
+                key,
+                index
+            )) {
+                return nullptr;
+            }
+
+            if (index >= shape[0]) {
+                PyErr_SetString(
+                    PyExc_IndexError,
+                    "Tensor index out of range"
+                );
+                return nullptr;
+            }
+
+            starts[0] = index;
+            stops[0] = index + 1;
+
+            return Tensor_ToPython(
+                Py_TYPE(self),
+                self->tensor->slice(
+                    starts,
+                    stops,
+                    steps
+                )
+            );
+        }
+
+        /*
+         * -----------------------------------------------------
+         * Slice
+         *
+         * t[0:1]
+         * -----------------------------------------------------
+         */
+
+        if (PySlice_Check(key)) {
+
+            if (ndim == 0) {
+                PyErr_SetString(
+                    PyExc_IndexError,
+                    "cannot slice a scalar Tensor"
+                );
+                return nullptr;
+            }
+
+            Py_ssize_t start;
+            Py_ssize_t stop;
+            Py_ssize_t step;
+
+            if (PySlice_GetIndices(
+                key,
+                static_cast<Py_ssize_t>(shape[0]),
+                &start,
+                &stop,
+                &step
+            ) < 0) {
+                return nullptr;
+            }
+
+            if (step <= 0) {
+                PyErr_SetString(
+                    PyExc_ValueError,
+                    "Tensor slicing currently requires positive step"
+                );
+                return nullptr;
+            }
+
+            starts[0] =
+                static_cast<std::size_t>(start);
+
+            stops[0] =
+                static_cast<std::size_t>(stop);
+
+            steps[0] =
+                static_cast<std::size_t>(step);
+
+            return Tensor_ToPython(
+                Py_TYPE(self),
+                self->tensor->slice(
+                    starts,
+                    stops,
+                    steps
+                )
+            );
+        }
+
+        /*
+         * -----------------------------------------------------
+         * Tuple indexing
+         *
+         * t[0, 1]
+         * t[:, 1]
+         * -----------------------------------------------------
+         */
+
+        if (PyTuple_Check(key)) {
+
+            const Py_ssize_t count =
+                PyTuple_Size(key);
+
+            if (
+                count < 1 ||
+                static_cast<std::size_t>(count) > ndim
+            ) {
+                PyErr_SetString(
+                    PyExc_IndexError,
+                    "invalid number of Tensor indices"
+                );
+                return nullptr;
+            }
+
+            for (
+                Py_ssize_t d = 0;
+                d < count;
+                ++d
+            ) {
+
+                PyObject* item =
+                    PyTuple_GetItem(
+                        key,
+                        d
+                    );
+
+                /*
+                 * Integer
+                 */
+                if (PyLong_Check(item)) {
+
+                    std::size_t index = 0;
+
+                    if (!PyIndexToSizeT(
+                        item,
+                        index
+                    )) {
+                        return nullptr;
+                    }
+
+                    const std::size_t dim =
+                        static_cast<std::size_t>(d);
+
+                    if (index >= shape[dim]) {
+                        PyErr_SetString(
+                            PyExc_IndexError,
+                            "Tensor index out of range"
+                        );
+                        return nullptr;
+                    }
+
+                    starts[dim] = index;
+                    stops[dim] = index + 1;
+                    steps[dim] = 1;
+
+                    continue;
+                }
+
+                /*
+                 * Slice
+                 */
+                if (PySlice_Check(item)) {
+
+                    const std::size_t dim =
+                        static_cast<std::size_t>(d);
+
+                    Py_ssize_t start;
+                    Py_ssize_t stop;
+                    Py_ssize_t step;
+
+                    if (PySlice_GetIndices(
+                        item,
+                        static_cast<Py_ssize_t>(
+                            shape[dim]
+                        ),
+                        &start,
+                        &stop,
+                        &step
+                    ) < 0) {
+                        return nullptr;
+                    }
+
+                    if (step <= 0) {
+                        PyErr_SetString(
+                            PyExc_ValueError,
+                            "Tensor slicing currently requires positive step"
+                        );
+                        return nullptr;
+                    }
+
+                    starts[dim] =
+                        static_cast<std::size_t>(start);
+
+                    stops[dim] =
+                        static_cast<std::size_t>(stop);
+
+                    steps[dim] =
+                        static_cast<std::size_t>(step);
+
+                    continue;
+                }
+
+                PyErr_SetString(
+                    PyExc_TypeError,
+                    "Tensor indices must be integers or slices"
+                );
+
+                return nullptr;
+            }
+
+            return Tensor_ToPython(
+                Py_TYPE(self),
+                self->tensor->slice(
+                    starts,
+                    stops,
+                    steps
+                )
+            );
+        }
+
+        PyErr_SetString(
+            PyExc_TypeError,
+            "Tensor indices must be integers, slices or tuples"
+        );
+
+        return nullptr;
+
+    }
+    catch (const std::exception& error) {
+
+        PyErr_SetString(
+            PyExc_RuntimeError,
+            error.what()
+        );
+
+        return nullptr;
+    }
+}
 static PyMethodDef PyTensor_methods[] = {
 
     {
@@ -1064,7 +1380,33 @@ static PyMethodDef PyTensor_methods[] = {
    Tensor properties
    ============================================================ */
 
+static PyObject* PyTensor_dtype(
+    PyTensor* self,
+    void*
+) {
+    if (!self || !self->tensor) {
+        PyErr_SetString(
+            PyExc_RuntimeError,
+            "Invalid Tensor object."
+        );
+        return nullptr;
+    }
+
+    return PyUnicode_FromString(
+        "float32"
+    );
+}
 static PyGetSetDef PyTensor_getset[] = {
+    {
+        "dtype",
+        reinterpret_cast<getter>(
+            PyTensor_dtype
+        ),
+        nullptr,
+        "Tensor data type.",
+        nullptr
+    },
+
 
     {
         "data",
@@ -1150,6 +1492,18 @@ static PyGetSetDef PyTensor_getset[] = {
    Tensor type
    ============================================================ */
 
+
+/* ============================================================
+   Tensor mapping protocol
+   ============================================================ */
+
+static PyMappingMethods PyTensor_mapping = {
+    0,
+    reinterpret_cast<binaryfunc>(
+        PyTensor_getitem
+    ),
+    0
+};
 static PyTypeObject PyTensorType = {
     PyVarObject_HEAD_INIT(nullptr, 0)
 };
@@ -1196,6 +1550,9 @@ PyMODINIT_FUNC PyInit__core() {
     PyTensorType.tp_flags =
         Py_TPFLAGS_DEFAULT |
         Py_TPFLAGS_BASETYPE;
+
+    PyTensorType.tp_as_mapping =
+        &PyTensor_mapping;
 
     PyTensorType.tp_doc =
         "CPUTorch Tensor.";
@@ -1249,3 +1606,6 @@ PyMODINIT_FUNC PyInit__core() {
 
     return module;
 }
+
+
+

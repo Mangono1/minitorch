@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "minitorch/device.h"
 #include "minitorch/dtype.h"
@@ -55,6 +55,18 @@ public:
     float item(std::size_t index) const;
     void set_item(std::size_t index, float value);
 
+    // Native indexing / slicing.
+    //
+    // Examples:
+    //   t[0]
+    //   t[0:1]
+    //   t[0, 1]
+    //   t[:, 1]
+    Tensor slice(
+        const std::vector<std::size_t>& starts,
+        const std::vector<std::size_t>& stops,
+        const std::vector<std::size_t>& steps
+    ) const;
     std::string repr() const;
 
     Tensor add(const Tensor& other) const;
@@ -77,3 +89,5 @@ private:
 };
 
 } // namespace minitorch
+
+
