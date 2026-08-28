@@ -1,4 +1,4 @@
-﻿from setuptools import setup, Extension
+from setuptools import setup, Extension
 from pathlib import Path
 import sys
 
@@ -50,7 +50,7 @@ extension = Extension(
 
 setup(
     name="cputorch",
-    version="0.5.9",
+    version="0.6.0",
     description="A lightweight tensor and neural network framework with CPU and Vulkan backends",
     long_description=(
         ROOT / "README.md"

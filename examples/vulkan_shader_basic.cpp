@@ -36,7 +36,7 @@ int main() {
 
         std::cout
             << "====================================\n"
-            << " MiniTorch V0.5.3 Vulkan Shader Test\n"
+            << " MiniTorch V0.6.0 Vulkan Shader Test\n"
             << "====================================\n\n";
 
         minitorch::VulkanContext context;
@@ -170,7 +170,7 @@ int main() {
 
         std::cout
             << "\n====================================\n"
-            << " ALL V0.5.3 TESTS PASSED\n"
+            << " ALL V0.6.0 TESTS PASSED\n"
             << "====================================\n";
 
         return 0;

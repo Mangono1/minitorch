@@ -1,12 +1,12 @@
-﻿cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.18)
 
 project(minitorch
-    VERSION 0.5.8
+    VERSION 0.6.0
     LANGUAGES CXX
 )
 
 # ============================================================
-# CPUTorch V0.5.7
+# CPUTorch V0.6.0
 # CPU-first architecture
 #
 # Vulkan is OPTIONAL.
@@ -387,7 +387,7 @@ endif()
 
 message(STATUS "")
 message(STATUS "================================================")
-message(STATUS "CPUTorch V0.5.7 BUILD CONFIGURATION")
+message(STATUS "CPUTorch V0.6.0 BUILD CONFIGURATION")
 message(STATUS "================================================")
 message(STATUS "Project version : ${PROJECT_VERSION}")
 message(STATUS "C++ standard    : C++17")
@@ -401,3 +401,24 @@ message(STATUS "Profiler        : ENABLED")
 message(STATUS "================================================")
 message(STATUS "")
 
+
+# ============================================================
+# MiniTorch - Runtime Shader Resources
+# ============================================================
+# Vulkan shader tests use paths relative to the build directory.
+# Copy the shader resources into build/shaders automatically.
+
+file(GLOB MINITORCH_SHADER_FILES
+    "${CMAKE_SOURCE_DIR}/shaders/*.comp"
+    "${CMAKE_SOURCE_DIR}/shaders/*.spv"
+)
+
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/shaders")
+
+foreach(MINITORCH_SHADER_FILE ${MINITORCH_SHADER_FILES})
+    configure_file(
+        "${MINITORCH_SHADER_FILE}"
+        "${CMAKE_BINARY_DIR}/shaders/"
+        COPYONLY
+    )
+endforeach()

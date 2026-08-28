@@ -28,9 +28,9 @@ https://github.com/Mangono1/minitorch
 
 ## Current Version
 
-**CPUTorch V0.5.5**
+**CPUTorch V0.6.0**
 
-## V0.5.5
+## V0.6.0
 
 Current development includes:
 

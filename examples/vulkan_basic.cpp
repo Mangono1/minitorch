@@ -7,7 +7,7 @@ int main() {
 
     std::cout
         << "====================================\n"
-        << " MiniTorch V0.5.0 Vulkan Test\n"
+        << " MiniTorch V0.6.0 Vulkan Test\n"
         << "====================================\n\n";
 
     try {
@@ -99,7 +99,7 @@ int main() {
 
         std::cout
             << "\n====================================\n"
-            << " ALL V0.5.0 TESTS PASSED\n"
+            << " ALL V0.6.0 TESTS PASSED\n"
             << "====================================\n";
 
         return 0;

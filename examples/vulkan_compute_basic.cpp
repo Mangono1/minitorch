@@ -11,7 +11,7 @@ int main() {
 
         std::cout
             << "====================================\n"
-            << " MiniTorch V0.5.2 Vulkan Compute Test\n"
+            << " MiniTorch V0.6.0 Vulkan Compute Test\n"
             << "====================================\n\n";
 
         VulkanContext context;
@@ -105,7 +105,7 @@ int main() {
 
         std::cout
             << "\n====================================\n"
-            << " ALL V0.5.2 TESTS PASSED\n"
+            << " ALL V0.6.0 TESTS PASSED\n"
             << "====================================\n";
 
         return 0;

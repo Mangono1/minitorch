@@ -1360,7 +1360,7 @@ void HardwareProfiler::print_report(
 ) {
     std::cout
         << "========================================\n"
-        << " CPUTorch V0.5.7 Hardware Profiler\n"
+        << " CPUTorch V0.6.0 Hardware Profiler\n"
         << "========================================\n\n";
 
     std::cout
